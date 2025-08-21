@@ -1,19 +1,33 @@
-﻿using CurrencyExchange.Services;
+﻿using CurrencyExchange.Interfaces;
+using CurrencyExchange.Repositories;
+using CurrencyExchange.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CurrencyExchange
 {
     internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-            var exchangeRateService = new ExchangeRateService();
-            var currencyConverter = new CurrencyConversionService(exchangeRateService);
-            var inputService = new ConsoleInputService();
+            var serviceCollection = new ServiceCollection();
 
+            ConfigureServices(serviceCollection);
+
+            var serviceProvider = serviceCollection.BuildServiceProvider();
+
+            var currencyExchangeService = serviceProvider.GetRequiredService<ICurrencyExchangeService>();
+            var exchangeRateService = serviceProvider.GetRequiredService<IExchangeRateService>();
+
+            Console.WriteLine("=== Currency Exchange Tool ===");
+            Console.WriteLine("Enter commands like: Exchange EUR/USD 100");
+
+            var supportedCurrencies = string.Join(", ", exchangeRateService.GetSupportedCurrencies());
+            Console.WriteLine($"Supported currencies: {supportedCurrencies}");
             do
             {
-                Console.WriteLine($"Enter command (e.g., Exchange EUR/DKK 1) or type '{Constants.Program.EndText}' to exit: ");
+                Console.WriteLine($"Enter command or type '{Constants.Program.EndText}' to exit: ");
                 var input = Console.ReadLine();
+
                 if (input?.Equals(Constants.Program.EndText, StringComparison.CurrentCultureIgnoreCase) == true)
                 {
                     break;
@@ -21,15 +35,27 @@ namespace CurrencyExchange
 
                 try
                 {
-                    var consoleCommand = inputService.ParseExchangeCommand(input!);
-                    var exchangedAmount = currencyConverter.Convert(consoleCommand.CurrencyPair, consoleCommand.Amount);
+                    var exchangedAmount = currencyExchangeService.ExchangeCurrency(input);
+
                     Console.WriteLine($"{exchangedAmount}");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
+                    Console.WriteLine($"Error: {ex.Message}");
                 }
             } while (true);
+
+            Console.WriteLine("Goodbye!");
+        }
+
+        private static void ConfigureServices(ServiceCollection services)
+        {
+            services.AddTransient<IExchangeRateRepository, ExchangeRateRepository>();
+            services.AddTransient<IExchangeRateValidationService, ExchangeRateValidationService>();
+            services.AddTransient<IExchangeRateService, ExchangeRateService>();
+            services.AddTransient<IInputValidationService, InputValidationService>();
+            services.AddTransient<IInputService, InputService>();
+            services.AddTransient<ICurrencyExchangeService, CurrencyExchangeService>();
         }
     }
 }

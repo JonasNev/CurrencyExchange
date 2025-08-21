@@ -1,51 +1,88 @@
+﻿using AutoFixture.Xunit2;
+using CurrencyExchange.Interfaces;
 using CurrencyExchange.Models;
 using CurrencyExchange.Services;
+using FluentAssertions;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
+using Xunit;
 
-namespace CurrencyExchangeTests.Services
+namespace CurrencyExchangeTests.Services;
+
+public class ExchangeRateServiceTests
 {
-    public class ExchangeRateServiceTests
+    private readonly IExchangeRateValidationService _exchangeRateValidationService = Substitute.For<IExchangeRateValidationService>();
+    private readonly IExchangeRateRepository _exchangeRateRepository = Substitute.For<IExchangeRateRepository>();
+
+    private readonly ExchangeRateService _exchangeRateService;
+
+    public ExchangeRateServiceTests()
     {
-        private readonly ExchangeRateService _exchangeRateService;
+        _exchangeRateService = new ExchangeRateService(_exchangeRateValidationService, _exchangeRateRepository);
+    }
 
-        public ExchangeRateServiceTests()
-        {
-            _exchangeRateService = new ExchangeRateService();
-        }
+    [Theory]
+    [AutoData]
+    public void GetExchangeRate_ValidCurrencyPair_ReturnsCalculatedRate(
+        string mainCurrency,
+        string incomingCurrency,
+        decimal mainRate,
+        decimal incomingRate)
+    {
+        var currencyPair = new CurrencyPair(mainCurrency, incomingCurrency);
+        var mainExchangeRate = new ExchangeRate(new CurrencyPair(mainCurrency, "DKK"), mainRate);
+        var incomingExchangeRate = new ExchangeRate(new CurrencyPair(incomingCurrency, "DKK"), incomingRate);
+        var validResult = new ValidationResult { IsValid = true, Errors = [] };
+        var expectedRate = Math.Round(1 / mainRate * incomingRate, 4);
 
-        [Fact]
-        public void GetExchangeRate_ValidCurrencyPair_ReturnsCorrectRate()
-        {
-            var currencyPair = new CurrencyPair("DKK", "USD");
-            var exchangeRate = _exchangeRateService.GetExchangeRate(currencyPair);
+        _exchangeRateRepository.GetExchangeRateForCurrency(mainCurrency).Returns(mainExchangeRate);
+        _exchangeRateRepository.GetExchangeRateForCurrency(incomingCurrency).Returns(incomingExchangeRate);
+        _exchangeRateValidationService.Validate(currencyPair, mainExchangeRate, incomingExchangeRate).Returns(validResult);
 
-            Assert.NotNull(exchangeRate);
-            Assert.Equal(0.1508M, exchangeRate.Rate);
-        }
+        var result = _exchangeRateService.GetExchangeRate(currencyPair);
 
-        [Fact]
-        public void GetExchangeRate_SameMainAndMoneyCurrency_ReturnsRateOfOne()
-        {
-            var currencyPair = new CurrencyPair("DKK", "DKK");
-            var exchangeRate = _exchangeRateService.GetExchangeRate(currencyPair);
+        result.Rate.Should().Be(expectedRate);
+    }
 
-            Assert.NotNull(exchangeRate);
-            Assert.Equal(1.0M, exchangeRate.Rate);
-        }
+    [Theory]
+    [AutoData]
+    public void GetExchangeRate_SameCurrency_ReturnsDefaultRate(string currency)
+    {
+        var currencyPair = new CurrencyPair(currency, currency);
 
-        [Fact]
-        public void GetExchangeRate_InvalidCurrencyPair_ThrowsException()
-        {
-            var currencyPair = new CurrencyPair("DKK", "XYZ");
+        var result = _exchangeRateService.GetExchangeRate(currencyPair);
 
-            Assert.Throws<InvalidOperationException>(() => _exchangeRateService.GetExchangeRate(currencyPair));
-        }
+        result.Rate.Should().Be(1.0m);
+        result.CurrencyPair.Should().Be(currencyPair);
+    }
 
-        [Fact]
-        public void GetExchangeRate_InvalidMainCurrency_ThrowsException()
-        {
-            var currencyPair = new CurrencyPair("XYZ", "USD");
+    [Theory]
+    [AutoData]
+    public void GetExchangeRate_ValidationFails_ThrowsInvalidOperationException(
+        string mainCurrency,
+        string incomingCurrency,
+        string errorMessage)
+    {
+        var currencyPair = new CurrencyPair(mainCurrency, incomingCurrency);
+        var invalidResult = new ValidationResult { IsValid = false, Errors = [errorMessage] };
 
-            Assert.Throws<InvalidOperationException>(() => _exchangeRateService.GetExchangeRate(currencyPair));
-        }
+        _exchangeRateValidationService.Validate(currencyPair, null, null).Returns(invalidResult);
+
+        _exchangeRateService.Invoking(x => x.GetExchangeRate(currencyPair))
+            .Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage(errorMessage);
+    }
+
+    [Theory]
+    [AutoData]
+    public void GetSupportedCurrencies_CallsRepository_ReturnsRepositoryResult(string[] currencies)
+    {
+        _exchangeRateRepository.GetSupportedCurrencies().Returns(currencies);
+
+        var result = _exchangeRateService.GetSupportedCurrencies();
+
+        result.Should().BeEquivalentTo(currencies);
+        _exchangeRateRepository.Received(1).GetSupportedCurrencies();
     }
 }
