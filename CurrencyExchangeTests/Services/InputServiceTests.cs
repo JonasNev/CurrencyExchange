@@ -1,6 +1,5 @@
 ﻿using FluentAssertions;
 using NSubstitute;
-using Xunit;
 using AutoFixture.Xunit2;
 using CurrencyExchange.Services;
 using CurrencyExchange.Interfaces;

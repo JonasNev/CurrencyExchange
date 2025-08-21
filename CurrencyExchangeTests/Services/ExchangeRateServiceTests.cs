@@ -4,8 +4,6 @@ using CurrencyExchange.Models;
 using CurrencyExchange.Services;
 using FluentAssertions;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
-using Xunit;
 
 namespace CurrencyExchangeTests.Services;
 

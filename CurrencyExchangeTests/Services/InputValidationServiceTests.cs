@@ -1,5 +1,4 @@
 ﻿using FluentAssertions;
-using Xunit;
 using CurrencyExchange.Services;
 
 namespace CurrencyExchangeTests.Services;

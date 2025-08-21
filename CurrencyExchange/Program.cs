@@ -3,59 +3,58 @@ using CurrencyExchange.Repositories;
 using CurrencyExchange.Services;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace CurrencyExchange
+namespace CurrencyExchange;
+
+internal class Program
 {
-    internal class Program
+    private static void Main(string[] args)
     {
-        private static void Main(string[] args)
+        var serviceCollection = new ServiceCollection();
+
+        ConfigureServices(serviceCollection);
+
+        var serviceProvider = serviceCollection.BuildServiceProvider();
+
+        var currencyExchangeService = serviceProvider.GetRequiredService<ICurrencyExchangeService>();
+        var exchangeRateService = serviceProvider.GetRequiredService<IExchangeRateService>();
+
+        Console.WriteLine("=== Currency Exchange Tool ===");
+        Console.WriteLine("Enter commands like: Exchange EUR/USD 100");
+
+        var supportedCurrencies = string.Join(", ", exchangeRateService.GetSupportedCurrencies());
+        Console.WriteLine($"Supported currencies: {supportedCurrencies}");
+        do
         {
-            var serviceCollection = new ServiceCollection();
+            Console.WriteLine($"Enter command or type '{Constants.Program.EndText}' to exit: ");
+            var input = Console.ReadLine();
 
-            ConfigureServices(serviceCollection);
-
-            var serviceProvider = serviceCollection.BuildServiceProvider();
-
-            var currencyExchangeService = serviceProvider.GetRequiredService<ICurrencyExchangeService>();
-            var exchangeRateService = serviceProvider.GetRequiredService<IExchangeRateService>();
-
-            Console.WriteLine("=== Currency Exchange Tool ===");
-            Console.WriteLine("Enter commands like: Exchange EUR/USD 100");
-
-            var supportedCurrencies = string.Join(", ", exchangeRateService.GetSupportedCurrencies());
-            Console.WriteLine($"Supported currencies: {supportedCurrencies}");
-            do
+            if (input?.Equals(Constants.Program.EndText, StringComparison.CurrentCultureIgnoreCase) == true)
             {
-                Console.WriteLine($"Enter command or type '{Constants.Program.EndText}' to exit: ");
-                var input = Console.ReadLine();
+                break;
+            }
 
-                if (input?.Equals(Constants.Program.EndText, StringComparison.CurrentCultureIgnoreCase) == true)
-                {
-                    break;
-                }
+            try
+            {
+                var exchangedAmount = currencyExchangeService.ExchangeCurrency(input);
 
-                try
-                {
-                    var exchangedAmount = currencyExchangeService.ExchangeCurrency(input);
+                Console.WriteLine($"{exchangedAmount:F4}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+        } while (true);
 
-                    Console.WriteLine($"{exchangedAmount:F4}");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error: {ex.Message}");
-                }
-            } while (true);
+        Console.WriteLine("Goodbye!");
+    }
 
-            Console.WriteLine("Goodbye!");
-        }
-
-        private static void ConfigureServices(ServiceCollection services)
-        {
-            services.AddTransient<IExchangeRateRepository, ExchangeRateRepository>();
-            services.AddTransient<IExchangeRateValidationService, ExchangeRateValidationService>();
-            services.AddTransient<IExchangeRateService, ExchangeRateService>();
-            services.AddTransient<IInputValidationService, InputValidationService>();
-            services.AddTransient<IInputService, InputService>();
-            services.AddTransient<ICurrencyExchangeService, CurrencyExchangeService>();
-        }
+    private static void ConfigureServices(ServiceCollection services)
+    {
+        services.AddTransient<IExchangeRateRepository, ExchangeRateRepository>();
+        services.AddTransient<IExchangeRateValidationService, ExchangeRateValidationService>();
+        services.AddTransient<IExchangeRateService, ExchangeRateService>();
+        services.AddTransient<IInputValidationService, InputValidationService>();
+        services.AddTransient<IInputService, InputService>();
+        services.AddTransient<ICurrencyExchangeService, CurrencyExchangeService>();
     }
 }
