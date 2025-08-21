@@ -37,7 +37,7 @@ namespace CurrencyExchange
                 {
                     var exchangedAmount = currencyExchangeService.ExchangeCurrency(input);
 
-                    Console.WriteLine($"{exchangedAmount}");
+                    Console.WriteLine($"{exchangedAmount:F4}");
                 }
                 catch (Exception ex)
                 {
