@@ -1,4 +1,3 @@
-﻿namespace CurrencyExchange.Models
-{
-    public record ExchangeRate(CurrencyPair CurrencyPair, decimal Rate);
-}
+﻿namespace CurrencyExchange.Models;
+
+public record ExchangeRate(CurrencyPair CurrencyPair, decimal Rate);
